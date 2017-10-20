@@ -1,17 +1,15 @@
-import sun.misc.BASE64Encoder;
-
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Random;
-
-import static javax.xml.crypto.dsig.Transform.BASE64;
 
 
 public class Main
@@ -30,10 +28,11 @@ class SymmEncrypt
 {
     private static final Random RANDOM = new SecureRandom();
     private Cipher cipher;
-    private byte [] iv, salt, key, passSalt, encryptedByte;
+    private byte [] iv, salt, key, passSalt, encryptedText;
     private SecretKey aesKey;
     private IvParameterSpec ivRand;
 
+    private File sourceFile = new File ("src.zip");
     private File encryptedZip = new File("encrypted.zip");
 
     public SymmEncrypt(String pass, String encryptionType)
@@ -49,17 +48,13 @@ class SymmEncrypt
             ivRand = new IvParameterSpec(iv);
 
             cipher.init(Cipher.ENCRYPT_MODE, aesKey, ivRand);
+            encryptedText = padEncrypt();
 
             System.out.println("Salt: " + DatatypeConverter.printHexBinary(salt));
-            System.out.println("Pass||Salt: " + DatatypeConverter.printHexBinary(passSalt));
+            System.out.println("IV: " + DatatypeConverter.printHexBinary(iv));
             System.out.println("Hashed key: " + DatatypeConverter.printHexBinary(key));
-            System.out.println(aesKey);
+
             //AES
-            //TODO Read file in
-
-            //TODO Break into blocks and pad
-
-            //TODO Encrypt and write to file
 
             //RSA
             //TODO Modular Exp, yay
@@ -109,6 +104,52 @@ class SymmEncrypt
         return key;
     }
 
+    private byte [] padEncrypt()
+    {
+        try
+        {
+            int size = (int)sourceFile.length();
+            byte [] encryptedText;
+            byte [] paddedPlainText;
+            byte [] plainText = new byte[size];
 
+            FileInputStream inputStream = new FileInputStream(sourceFile);
+            if(!encryptedZip.exists())
+            {
+                encryptedZip.createNewFile();
+            }
 
+            inputStream.read(plainText);
+            paddedPlainText = padBlock(plainText, cipher.getBlockSize());
+            encryptedText = cipher.doFinal(paddedPlainText);
+            FileOutputStream outputStream = new FileOutputStream(encryptedZip);
+            outputStream.write(encryptedText);
+
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+        return encryptedText;
+    }
+
+    private byte [] padBlock(byte [] plainText, int blockSize)
+    {
+        int padding = blockSize - (plainText.length % blockSize);
+        byte [] paddedPlainText = new byte[plainText.length + padding];
+        System.arraycopy(plainText, 0, paddedPlainText, 0, plainText.length);
+
+        /*
+            If the plaintext matches up to 128bit blocksize then just append
+            an extra block of 10000000. If it does not, go to the end of the plaintext
+            and append the appropriate amount of 0's
+         */
+        paddedPlainText[plainText.length] = (byte)0x80;
+        for(int i = 1; i < padding; i++)
+        {
+            paddedPlainText[plainText.length + i] = 0;
+        }
+
+        return paddedPlainText;
+    }
 }
