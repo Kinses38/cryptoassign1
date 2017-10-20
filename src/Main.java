@@ -8,7 +8,7 @@ import java.util.Random;
 public class Main {
     private static final Random RANDOM = new SecureRandom();
 
-    public static byte [] generateSalt()
+    private static byte [] generateSalt()
     {
         byte [] salt = new byte[16];
         RANDOM.nextBytes(salt);
@@ -19,7 +19,7 @@ public class Main {
         return salt;
     }
 
-    public static byte [] concatPassSalt(String plaintext, byte [] salt)
+    private static byte [] concatPassSalt(String plaintext, byte [] salt)
     {
         byte [] passwordByte = plaintext.getBytes(StandardCharsets.UTF_8);
         byte [] plainPassSalt = new byte [passwordByte.length + salt.length];
@@ -33,29 +33,31 @@ public class Main {
         return plainPassSalt;
     }
 
+    private static byte [] hashPassSalt(byte [] passSalt)
+    {
+        byte [] key = new byte [passSalt.length];
+        try
+        {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (int i = 0; i < 200; i++)
+            {
+                key = digest.digest(key);
+            }
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+        return key;
+    }
+
     public static void main (String [] args)
     {
         String plainTextPassword = "FirstAttempt";
+        byte [] digestArray = concatPassSalt(plainTextPassword, generateSalt());
+        byte [] key = hashPassSalt(digestArray);
 
-        try
-        {
-            MessageDigest passwordDigest = MessageDigest.getInstance("SHA-256");
-            byte [] digestArray = passwordDigest.digest(concatPassSalt(plainTextPassword, generateSalt()));
-            String hexDigest = DatatypeConverter.printHexBinary(digestArray);
-            System.out.println("Hashed Password: " + hexDigest);
-        }
-        catch (NoSuchAlgorithmException e){
-            e.printStackTrace();
-        }
-
-
-     //sha-256 x 200
-
-     //result stored as 256-bit aes key
-
-     /*
-      part 2
-
-      */
+        String hexkey = DatatypeConverter.printHexBinary(key);
+        System.out.println("Hashed Password: " + hexkey);
     }
 }
