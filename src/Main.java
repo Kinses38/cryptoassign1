@@ -1,25 +1,87 @@
-import javax.crypto.*;
+import sun.misc.BASE64Encoder;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
-import java.security.*;
-import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.Random;
 
-public class Main {
-    private static final Random RANDOM = new SecureRandom();
+import static javax.xml.crypto.dsig.Transform.BASE64;
 
-    private static byte [] generateSalt()
+
+public class Main
+{
+    public static void main (String [] args)
+    {
+        //https://xkcd.com/936/
+        String plainTextPassword = "correctHorseBatteryStaple";
+        String encryptionType = "AES/CBC/NoPadding";
+
+        SymmEncrypt aes = new SymmEncrypt(plainTextPassword, encryptionType);
+    }
+}
+
+class SymmEncrypt
+{
+    private static final Random RANDOM = new SecureRandom();
+    private Cipher cipher;
+    private byte [] iv, salt, key, passSalt, encryptedByte;
+    private SecretKey aesKey;
+    private IvParameterSpec ivRand;
+
+    private File encryptedZip = new File("encrypted.zip");
+
+    public SymmEncrypt(String pass, String encryptionType)
+    {
+        try
+        {
+            cipher = Cipher.getInstance(encryptionType);
+            salt = generateSalt();
+            iv = generateSalt();
+            passSalt = concatPassSalt(pass, salt);
+            key = hashPassSalt(passSalt);
+            aesKey = new SecretKeySpec(key, 0, key.length, "AES");
+            ivRand = new IvParameterSpec(iv);
+
+            cipher.init(Cipher.ENCRYPT_MODE, aesKey, ivRand);
+
+            System.out.println("Salt: " + DatatypeConverter.printHexBinary(salt));
+            System.out.println("Pass||Salt: " + DatatypeConverter.printHexBinary(passSalt));
+            System.out.println("Hashed key: " + DatatypeConverter.printHexBinary(key));
+            System.out.println(aesKey);
+            //AES
+            //TODO Read file in
+
+            //TODO Break into blocks and pad
+
+            //TODO Encrypt and write to file
+
+            //RSA
+            //TODO Modular Exp, yay
+
+            //TODO Check/compare output
+
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private byte [] generateSalt()
     {
         byte [] salt = new byte[16];
         RANDOM.nextBytes(salt);
 
-        String saltCheck = DatatypeConverter.printHexBinary(salt);
-        System.out.println("Salt: " + saltCheck);
-
         return salt;
     }
 
-    private static byte [] concatPassSalt(String plaintext, byte [] salt)
+    private byte [] concatPassSalt(String plaintext, byte [] salt)
     {
         byte [] passwordByte = plaintext.getBytes(StandardCharsets.UTF_8);
         byte [] unhashedKey = new byte [passwordByte.length + salt.length];
@@ -30,7 +92,7 @@ public class Main {
         return unhashedKey;
     }
 
-    private static byte [] hashPassSalt(byte [] key)
+    private byte [] hashPassSalt(byte [] key)
     {
         try
         {
@@ -47,13 +109,6 @@ public class Main {
         return key;
     }
 
-    public static void main (String [] args)
-    {
-        String plainTextPassword = "FirstAttempt";
 
-        byte [] digestArray = concatPassSalt(plainTextPassword, generateSalt());
-        System.out.println("PreHashed: "  + DatatypeConverter.printHexBinary(digestArray));
-        byte [] key = hashPassSalt(digestArray);
-        System.out.println("Hashed Password: " + DatatypeConverter.printHexBinary(key));
-    }
+
 }
