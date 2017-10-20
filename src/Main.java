@@ -55,11 +55,11 @@ class SymmEncrypt
             System.out.println("Hashed key: " + DatatypeConverter.printHexBinary(key));
 
             //AES
+            //TODO Check/compare output
 
             //RSA
             //TODO Modular Exp, yay
 
-            //TODO Check/compare output
 
         }
         catch(Exception e)
@@ -125,6 +125,9 @@ class SymmEncrypt
             FileOutputStream outputStream = new FileOutputStream(encryptedZip);
             outputStream.write(encryptedText);
 
+            outputStream.flush();
+            outputStream.close();
+            inputStream.close();
         }
         catch (Exception e)
         {
