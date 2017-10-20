@@ -28,12 +28,13 @@ class SymmEncrypt
 {
     private static final Random RANDOM = new SecureRandom();
     private Cipher cipher;
-    private byte [] iv, salt, key, passSalt, encryptedText;
+    private byte [] iv, salt, key, passSalt, encryptedText, decryptedText;
     private SecretKey aesKey;
     private IvParameterSpec ivRand;
 
     private File sourceFile = new File ("src.zip");
     private File encryptedZip = new File("encrypted.zip");
+    private File decryptedZip = new File("decrypted.zip");
 
     public SymmEncrypt(String pass, String encryptionType)
     {
@@ -56,7 +57,8 @@ class SymmEncrypt
 
             //AES
             //TODO Check/compare output
-
+            cipher.init(Cipher.DECRYPT_MODE, aesKey, ivRand);
+            decryptedText = decrypt();
             //RSA
             //TODO Modular Exp, yay
 
@@ -109,8 +111,7 @@ class SymmEncrypt
         try
         {
             int size = (int)sourceFile.length();
-            byte [] encryptedText;
-            byte [] paddedPlainText;
+            byte [] encryptedText, paddedPlainText;
             byte [] plainText = new byte[size];
 
             FileInputStream inputStream = new FileInputStream(sourceFile);
@@ -154,5 +155,53 @@ class SymmEncrypt
         }
 
         return paddedPlainText;
+    }
+
+    private byte [] decrypt()
+    {
+        try
+        {
+            if(encryptedZip.exists())
+            {
+                int size = (int)encryptedZip.length();
+                FileInputStream inputStream = new FileInputStream(encryptedZip);
+                FileOutputStream outputStream = new FileOutputStream(decryptedZip);
+                byte [] encryptedText = new byte[size];
+                byte [] paddedPlainText, decryptedText;
+
+                inputStream.read(encryptedText);
+                paddedPlainText = cipher.doFinal(encryptedText);
+                decryptedText = removePadding(paddedPlainText);
+                outputStream.write(decryptedText);
+
+                inputStream.close();
+                outputStream.flush();
+                outputStream.close();
+            }
+
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+        return decryptedText;
+    }
+
+    /*
+       Return everything to left of the last 0x80 in array.
+     */
+    private byte [] removePadding(byte [] paddedText)
+    {
+        byte [] plainText = new byte[paddedText.length];
+
+        for(int padPosition = paddedText.length-1; padPosition > 0; padPosition--)
+        {
+            if(paddedText[padPosition] == (byte)0x80)
+            {
+                System.arraycopy(paddedText, 0, plainText, 0, padPosition);
+                break;
+            }
+        }
+        return plainText;
     }
 }
