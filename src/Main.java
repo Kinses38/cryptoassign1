@@ -22,20 +22,16 @@ public class Main {
     private static byte [] concatPassSalt(String plaintext, byte [] salt)
     {
         byte [] passwordByte = plaintext.getBytes(StandardCharsets.UTF_8);
-        byte [] plainPassSalt = new byte [passwordByte.length + salt.length];
+        byte [] unhashedKey = new byte [passwordByte.length + salt.length];
 
-        System.arraycopy(passwordByte,0,plainPassSalt,0, passwordByte.length);
-        System.arraycopy(salt, 0, plainPassSalt, passwordByte.length, salt.length);
+        System.arraycopy(passwordByte,0,unhashedKey,0, passwordByte.length);
+        System.arraycopy(salt, 0, unhashedKey, passwordByte.length, salt.length);
 
-        String plainPassSaltcheck = DatatypeConverter.printHexBinary(plainPassSalt);
-        System.out.println("plainPass+salt: " + plainPassSaltcheck);
-
-        return plainPassSalt;
+        return unhashedKey;
     }
 
-    private static byte [] hashPassSalt(byte [] passSalt)
+    private static byte [] hashPassSalt(byte [] key)
     {
-        byte [] key = new byte [passSalt.length];
         try
         {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -54,10 +50,10 @@ public class Main {
     public static void main (String [] args)
     {
         String plainTextPassword = "FirstAttempt";
-        byte [] digestArray = concatPassSalt(plainTextPassword, generateSalt());
-        byte [] key = hashPassSalt(digestArray);
 
-        String hexkey = DatatypeConverter.printHexBinary(key);
-        System.out.println("Hashed Password: " + hexkey);
+        byte [] digestArray = concatPassSalt(plainTextPassword, generateSalt());
+        System.out.println("PreHashed: "  + DatatypeConverter.printHexBinary(digestArray));
+        byte [] key = hashPassSalt(digestArray);
+        System.out.println("Hashed Password: " + DatatypeConverter.printHexBinary(key));
     }
 }
