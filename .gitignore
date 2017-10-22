@@ -2,7 +2,8 @@
 *.class
 
 # Assignment extra files
-*.zip
+decrypted.zip
+encrypted.zip
 
 # Idea
 *.iml
