@@ -44,7 +44,7 @@ class SymmEncrypt
             salt = generateSalt();
             iv = generateSalt();
             passSalt = concatPassSalt(pass, salt);
-            key = hashPassSalt(passSalt);
+            key = hashPassSalt(passSalt, "SHA-256");
             aesKey = new SecretKeySpec(key, 0, key.length, "AES");
             ivRand = new IvParameterSpec(iv);
 
@@ -54,7 +54,7 @@ class SymmEncrypt
             System.out.println("Salt: " + DatatypeConverter.printHexBinary(salt));
             System.out.println("IV: " + DatatypeConverter.printHexBinary(iv));
             System.out.println("Hashed key: " + DatatypeConverter.printHexBinary(key));
-
+            System.out.println("AES encrypted Src File: " + DatatypeConverter.printHexBinary(encryptedText));
             //AES
             //TODO Check/compare output
             cipher.init(Cipher.DECRYPT_MODE, aesKey, ivRand);
@@ -89,11 +89,11 @@ class SymmEncrypt
         return unhashedKey;
     }
 
-    private byte [] hashPassSalt(byte [] key)
+    private byte [] hashPassSalt(byte [] key, String hashType)
     {
         try
         {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(hashType);
             for (int i = 0; i < 200; i++)
             {
                 key = digest.digest(key);
@@ -122,6 +122,7 @@ class SymmEncrypt
 
             inputStream.read(plainText);
             paddedPlainText = padBlock(plainText, cipher.getBlockSize());
+
             encryptedText = cipher.doFinal(paddedPlainText);
             FileOutputStream outputStream = new FileOutputStream(encryptedZip);
             outputStream.write(encryptedText);
@@ -129,6 +130,7 @@ class SymmEncrypt
             outputStream.flush();
             outputStream.close();
             inputStream.close();
+            return encryptedText;
         }
         catch (Exception e)
         {
@@ -146,14 +148,14 @@ class SymmEncrypt
         /*
             If the plaintext matches up to 128bit blocksize then just append
             an extra block of 10000000. If it does not, go to the end of the plaintext
-            and append the appropriate amount of 0's
+            and append the appropriate amount of 0's after the initial 0x80 to make it a multiple
+            of 16
          */
         paddedPlainText[plainText.length] = (byte)0x80;
         for(int i = 1; i < padding; i++)
         {
-            paddedPlainText[plainText.length + i] = 0;
+            paddedPlainText[plainText.length + i] = (byte)0;
         }
-
         return paddedPlainText;
     }
 
@@ -161,23 +163,22 @@ class SymmEncrypt
     {
         try
         {
-            if(encryptedZip.exists())
-            {
-                int size = (int)encryptedZip.length();
-                FileInputStream inputStream = new FileInputStream(encryptedZip);
-                FileOutputStream outputStream = new FileOutputStream(decryptedZip);
-                byte [] encryptedText = new byte[size];
-                byte [] paddedPlainText, decryptedText;
+            int size = (int)encryptedZip.length();
+            FileInputStream inputStream = new FileInputStream(encryptedZip);
+            FileOutputStream outputStream = new FileOutputStream(decryptedZip);
+            byte [] encryptedText = new byte[size];
+            byte [] paddedPlainText, decryptedText;
 
-                inputStream.read(encryptedText);
-                paddedPlainText = cipher.doFinal(encryptedText);
-                decryptedText = removePadding(paddedPlainText);
-                outputStream.write(decryptedText);
+            inputStream.read(encryptedText);
+            paddedPlainText = cipher.doFinal(encryptedText);
+            decryptedText = removePadding(paddedPlainText);
+            outputStream.write(decryptedText);
 
-                inputStream.close();
-                outputStream.flush();
-                outputStream.close();
-            }
+            inputStream.close();
+            outputStream.flush();
+            outputStream.close();
+
+            return decryptedText;
 
         }
         catch(Exception e)
@@ -190,18 +191,25 @@ class SymmEncrypt
     /*
        Return everything to left of the last 0x80 in array.
      */
+
     private byte [] removePadding(byte [] paddedText)
     {
-        byte [] plainText = new byte[paddedText.length];
-
-        for(int padPosition = paddedText.length-1; padPosition > 0; padPosition--)
+        try
         {
-            if(paddedText[padPosition] == (byte)0x80)
+            int padPosition = paddedText.length-1;
+            while(padPosition > 0 && paddedText[padPosition] != (byte)0x80)
             {
-                System.arraycopy(paddedText, 0, plainText, 0, padPosition);
-                break;
+                padPosition --;
             }
+
+            byte [] plainText = new byte[padPosition];
+            System.arraycopy(paddedText, 0, plainText, 0, padPosition);
+            return plainText;
         }
-        return plainText;
+        catch (ArrayIndexOutOfBoundsException e)
+        {
+            e.printStackTrace();
+        }
+        return paddedText;
     }
 }
